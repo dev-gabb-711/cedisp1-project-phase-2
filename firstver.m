@@ -2,7 +2,8 @@
 % Contribution:
 % Dan Dabuit - Assisted with file conversion to .wav format
 % Marion Melanio - Recording of the .wav file and subplotting of extracted vowels
-% Gabriel Infante - Calculated and displayed the average frequencies
+% Gabriel Infante - Calculated and displayed the average frequencies.
+%                   Refinement of frequencies and timings of each syllable
 % Tara Uy - Syllable segmentation/mapping, literature search of bahay kubo
 clear; clc; close all; % Clears workspace, command window, and closes all figure windows
 
@@ -28,20 +29,20 @@ syllable_data = {
 
 %% --- 2. MUSIC THEORY & SCORE MAPPING ---
 % Define the fundamental frequencies (Hz) of notes in the C3 Major Scale
-E3 = 82.40689; F3 = 87.30706; G3 = 97.99886; A3 = 110.0000; B3 = 123.4708;
-C4 = 130.8128; D4 = 146.8324; E4 = 164.8138;
+E3 = 164.8138; F3 = 174.6141; G3 = 195.9977; A3 = 220.0000; B3 = 246.9417;
+C4 = 261.6256; D4 = 293.6648; E4 = 329.6276;
 
 % Musical Score of "Bahay Kubo"
 % Format: {Syllable_Index, Target_Frequency (Hz), Note_Duration (Beats)}
 score = {
     % --- LINE 1: Bahay kubo, kahit munti ---
-    1,  G3, 2;   % ba
+    1,  G3, 1;   % ba
     2,  C4, 2;   % hay
-    3,  D4, 2;   % ku
-    4,  B3, 2; % bo (Held for 2 beats)
-    5,  G3, 2;   % ka
+    3,  D4, 1;   % ku
+    4,  B3, 2;   % bo (Held for 2 beats)
+    5,  G3, 1;   % ka
     6,  A3, 2;   % hit
-    7,  B3, 2;   % mun
+    7,  B3, 1;   % mun
     8,  G3, 2;   % ti (Held for 2 beats)
     
     % --- LINE 2: Ang halaman doon ay sari ---
@@ -49,88 +50,95 @@ score = {
     10, F3, 0.5; % ha  (Eighth note / half beat)
     11, G3, 1;   % la
     12, A3, 1;   % man
-    13, G3, 2;   % do
+    13, G3, 1;   % do
     14, F3, 2;   % on
-    15, D4, 2;   % ay
+    15, D4, 1;   % ay
     16, D4, 1;   % sa (Targeting resolution)
     17, E4, 1;   % ri (Resolves to root note C3 for a closed ending)
     18, D4, 1;   % sa 
     19, C4, 1;   % ri 
 };
 
-%% --- 3. SYNTHESIS ENGINE ---
+%% --- 3. SYNTHESIS ENGINE (OVERLAP-MIXING) ---
 disp('Extracting original pitches and synthesizing...');
-final_song = []; % Empty array to hold the generated song
-line1_len = 0;   % Tracker for plotting subplots later
 
-% Loop through every note in the musical score
+total_beats = sum(cell2mat(score(:, 3)));
+total_samples = round((total_beats + 2) * quarter_note_dur * Fs); 
+final_song = zeros(total_samples, 1);
+
+current_idx = 1; 
+line1_len = 0;   
+
 for i = 1:size(score, 1)
-    % 3.1 Extract variables for current note
     syllable_idx = score{i, 1};
     target_freq = score{i, 2};
     duration_beats = score{i, 3};
-    duration_sec = duration_beats * quarter_note_dur; % Convert beats to actual seconds
     
-    % 3.2 Extract the raw audio snippet for the specific syllable
     t_start = syllable_data{syllable_idx, 2};
     t_end = syllable_data{syllable_idx, 3};
-    snippet = y(round(t_start*Fs) : round(t_end*Fs)); % Convert time to sample indices
+    snippet = y(round(t_start*Fs) : round(t_end*Fs)); 
     
-    % 3.3 Pitch Detection via Autocorrelation (xcorr)
-    % Extract only the middle 50% to isolate the vowel and avoid unvoiced consonants
+    % Robust Pitch Detection (DC Removal + Lowpass Filter)
     mid_start = round(length(snippet) * 0.25);
     mid_end = round(length(snippet) * 0.75);
     voiced_part = snippet(mid_start:mid_end);
+    voiced_part = voiced_part - mean(voiced_part);
     
-    % Perform cross-correlation to find repeating pitch periods
+    % The filter guarantees the math locks onto the human voice, not background noise
+    [b, a] = butter(2, 600/(Fs/2), 'low');
+    voiced_part = filtfilt(b, a, voiced_part);
+    
+    voiced_part = voiced_part .* hamming(length(voiced_part));
+    
     [r, lags] = xcorr(voiced_part);
-    r = r(lags >= 0); % Keep only non-negative lags
-    
-    % Limit search to human voice range (80 Hz to 800 Hz) to avoid noise/errors
-    minPitch = 80; maxPitch = 800;
-    r(1:round(Fs/maxPitch)) = 0; % Zero out frequencies too high
-    if length(r) > round(Fs/minPitch)
-        r(round(Fs/minPitch)+1:end) = 0; % Zero out frequencies too low
+    r = r(lags >= 0); 
+    minPitch = 80; maxPitch = 400;
+    min_lag = round(Fs/maxPitch);
+    max_lag = round(Fs/minPitch);
+    r(1:min_lag) = 0; 
+    if length(r) > max_lag
+        r(max_lag+1:end) = 0; 
     end
-    [~, peak_idx] = max(r); % Find the highest peak which represents the fundamental period
-    
-    % Calculate original pitch frequency (subtract 1 because MATLAB is 1-indexed)
+    [~, peak_idx] = max(r); 
     orig_freq = Fs / (peak_idx - 1); 
-    
-    % Fallback mechanism if Autocorrelation fails
-    if orig_freq < 80 || orig_freq > 800
+    if orig_freq < 80 || orig_freq > 400 || isnan(orig_freq)
         orig_freq = 150; 
     end
     
-    % 3.4 Process audio through the custom pitch-shifting function
-    synth_note = shift_and_stretch(snippet, orig_freq, target_freq, duration_sec, Fs);
+    % Calculate target duration based on the musical score
+    target_dur_sec = duration_beats * quarter_note_dur;
     
-    % 3.5 Append the synthesized note to the final song array
-    final_song = [final_song; synth_note];
+    % Process audio through Wavetable Sustainer
+    synth_note = shift_and_sustain(snippet, orig_freq, target_freq, target_dur_sec, Fs);
     
-    % 3.6 Insert waltz phrasing rests (silence) after 'bo' and 'ti'
-    if i == 4 || i == 8
-        rest_samples = zeros(round(quarter_note_dur * Fs), 1);
-        final_song = [final_song; rest_samples];
+    % Overlap-Mixing Timeline
+    note_len = length(synth_note);
+    end_idx = current_idx + note_len - 1;
+    
+    if end_idx > total_samples
+        synth_note = synth_note(1 : total_samples - current_idx + 1);
+        end_idx = total_samples;
     end
     
-    % Track where Line 1 ends to divide the subplot later
+    final_song(current_idx:end_idx) = final_song(current_idx:end_idx) + synth_note;
+    
+    step_samples = round(duration_beats * quarter_note_dur * Fs);
+    current_idx = current_idx + step_samples;
+    
     if i == 8
-        line1_len = length(final_song);
+        line1_len = current_idx;
     end
 end
 
 %% --- 4. FORMATTING TO REQUIREMENTS ---
-% Requirement: Output must be exactly 16 kHz sampling rate
 target_Fs = 16000;
 if Fs ~= target_Fs
     final_song = resample(final_song, target_Fs, Fs);
-    line1_len = round(line1_len * (target_Fs / Fs)); % Adjust plot tracker to new Fs
+    line1_len = round(line1_len * (target_Fs / Fs)); 
     Fs = target_Fs;
 end
 
-% Amplitude Normalization: Scale everything down so max peak is 1.0 
-% This prevents audio clipping/distortion when saving to WAV
+% Amplitude Normalization
 final_song = final_song / max(abs(final_song));
 
 %% --- 5. OUTPUTS ---
@@ -162,33 +170,79 @@ xlabel('Time (s)'); ylabel('Amplitude');
 grid on; axis tight;
 
 %% --- LOCAL FUNCTION ---
-% This function changes the pitch and fits the audio into the required musical beat
-function out_audio = shift_and_stretch(audio_in, orig_freq, target_freq, target_dur_sec, Fs)
-    % 1. Pitch Shifting via Resample
-    % Gets the integer ratio of orig vs target to safely resample
-    [P, Q] = rat(orig_freq / target_freq);
-    shifted_audio = resample(audio_in, P, Q);
+% This function simply pitch-shifts and applies a smooth natural decay
+% to the note, avoiding all robotic and stuttering stretching artifacts!
+function out_audio = shift_and_sustain(audio_in, orig_freq, target_freq, target_dur_sec, Fs)
+    % 1. Clean Pitch Shifting
+    [P, Q] = rat(orig_freq / target_freq, 1e-4);
+    shifted = resample(audio_in, P, Q);
     
-    % 2. Envelope Shaping (Fade-in and Fade-out)
-    % Applies a 20ms linear window to prevent clicking/popping noises at the edges
-    fade_len = round(0.02 * Fs); 
-    if length(shifted_audio) > 2*fade_len
-        window = linspace(0, 1, fade_len)';
-        shifted_audio(1:fade_len) = shifted_audio(1:fade_len) .* window;
-        shifted_audio(end-fade_len+1:end) = shifted_audio(end-fade_len+1:end) .* flipud(window);
+    target_samples = round(target_dur_sec * Fs);
+    curr_samples = length(shifted);
+    
+    % 2. Wavetable Sustain (Micro-looping without the stutter)
+    if curr_samples < target_samples
+        % Isolate consonants to preserve the words clearly
+        idx_start = max(1, round(curr_samples * 0.25));
+        idx_end = min(curr_samples, round(curr_samples * 0.75));
+        
+        start_cons = shifted(1:idx_start-1);
+        end_cons = shifted(idx_end+1:end);
+        vowel = shifted(idx_start:idx_end);
+        
+        % Extract EXACTLY two pitch periods of the human voice
+        period = round(Fs / target_freq);
+        grain_size = 2 * period;
+        
+        if grain_size > length(vowel)
+            grain_size = length(vowel);
+            period = max(1, round(grain_size/2));
+        end
+        
+        mid_vowel = round(length(vowel) / 2);
+        wave_start = max(1, mid_vowel - round(grain_size/2));
+        wave = vowel(wave_start : min(length(vowel), wave_start + grain_size - 1));
+        grain_size = length(wave); 
+        
+        % Smooth the grain edges to prevent the square-wave buzz
+        win = hamming(grain_size);
+        wave = wave .* win;
+        
+        % Calculate empty space to fill
+        gap = target_samples - length(start_cons) - length(end_cons);
+        
+        if gap > 0
+            sustained = zeros(gap + grain_size, 1);
+            out_idx = 1;
+            
+            % Overlap exactly 1 period to create a smooth, continuous singing note
+            while out_idx + grain_size - 1 <= length(sustained)
+                sustained(out_idx : out_idx + grain_size - 1) = ...
+                    sustained(out_idx : out_idx + grain_size - 1) + wave;
+                out_idx = out_idx + period; 
+            end
+            
+            % Add a slight volume envelope so it breathes naturally like a singer
+            sustained = sustained(1:gap); 
+            env_len = round(gap * 0.2);
+            if env_len > 0 && env_len*2 < length(sustained)
+                sustained(1:env_len) = sustained(1:env_len) .* linspace(0.8, 1, env_len)';
+                sustained(end-env_len+1:end) = sustained(end-env_len+1:end) .* linspace(1, 0.7, env_len)';
+            end
+            
+            out_audio = [start_cons; sustained; end_cons];
+        else
+            out_audio = [start_cons; end_cons];
+        end
+    else
+        % If the word is already long enough, let it ring out naturally
+        out_audio = shifted(1:target_samples);
     end
     
-    % 3. Time Alignment (Zero-Padding / Staccato Method)
-    target_samples = round(target_dur_sec * Fs); % Exact length needed for the note
-    curr_samples = length(shifted_audio);
-    
-    out_audio = zeros(target_samples, 1); % Create a container filled with silence
-    
-    if curr_samples >= target_samples
-        % If audio is longer than the required beat, truncate it
-        out_audio = shifted_audio(1:target_samples);
-    else
-        % If audio is shorter, place it at the start, leaving the rest as silence (zero-padding)
-        out_audio(1:curr_samples) = shifted_audio;
+    % 3. Master Edge Smooth (de-clicking)
+    fade_len = round(0.02 * Fs);
+    if length(out_audio) > 2*fade_len
+        out_audio(1:fade_len) = out_audio(1:fade_len) .* linspace(0, 1, fade_len)';
+        out_audio(end-fade_len+1:end) = out_audio(end-fade_len+1:end) .* linspace(1, 0, fade_len)';
     end
 end
