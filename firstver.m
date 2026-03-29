@@ -28,34 +28,34 @@ syllable_data = {
 
 %% --- 2. MUSIC THEORY & SCORE MAPPING ---
 % Define the fundamental frequencies (Hz) of notes in the C3 Major Scale
-C3 = 130.81; D3 = 146.83; E3 = 164.81; F3 = 174.61; 
-G3 = 196.00; A3 = 220.00; C4 = 261.63;
+E3 = 82.40689; F3 = 87.30706; G3 = 97.99886; A3 = 110.0000; B3 = 123.4708;
+C4 = 130.8128; D4 = 146.8324; E4 = 164.8138;
 
 % Musical Score of "Bahay Kubo"
 % Format: {Syllable_Index, Target_Frequency (Hz), Note_Duration (Beats)}
 score = {
     % --- LINE 1: Bahay kubo, kahit munti ---
-    1,  G3, 1;   % ba
-    2,  C4, 1;   % hay
-    3,  A3, 1;   % ku
-    4,  G3, 2;   % bo (Held for 2 beats)
-    5,  E3, 1;   % ka
-    6,  G3, 1;   % hit
-    7,  F3, 1;   % mun
-    8,  D3, 2;   % ti (Held for 2 beats)
+    1,  G3, 2;   % ba
+    2,  C4, 2;   % hay
+    3,  D4, 2;   % ku
+    4,  B3, 2; % bo (Held for 2 beats)
+    5,  G3, 2;   % ka
+    6,  A3, 2;   % hit
+    7,  B3, 2;   % mun
+    8,  G3, 2;   % ti (Held for 2 beats)
     
     % --- LINE 2: Ang halaman doon ay sari ---
-    9,  G3, 0.5; % ang (Eighth note / half beat)
-    10, G3, 0.5; % ha  (Eighth note / half beat)
+    9,  E3, 0.5; % ang (Eighth note / half beat)
+    10, F3, 0.5; % ha  (Eighth note / half beat)
     11, G3, 1;   % la
-    12, C4, 1;   % man
-    13, A3, 1;   % do
-    14, G3, 1;   % on
-    15, E3, 1;   % ay
-    16, D3, 1;   % sa (Targeting resolution)
-    17, C3, 1;   % ri (Resolves to root note C3 for a closed ending)
-    18, D3, 1;   % sa 
-    19, C3, 2;   % ri 
+    12, A3, 1;   % man
+    13, G3, 2;   % do
+    14, F3, 2;   % on
+    15, D4, 2;   % ay
+    16, D4, 1;   % sa (Targeting resolution)
+    17, E4, 1;   % ri (Resolves to root note C3 for a closed ending)
+    18, D4, 1;   % sa 
+    19, C4, 1;   % ri 
 };
 
 %% --- 3. SYNTHESIS ENGINE ---
@@ -157,7 +157,7 @@ grid on; axis tight;
 subplot(2,1,2); 
 t2 = (0:length(final_song)-line1_len-1)/Fs;
 plot(t2, final_song(line1_len+1:end), 'r');
-title('Line 2: /Ang halaman doon ay sari/'); 
+title('Line 2: /Ang halaman doon ay sari-sari/'); 
 xlabel('Time (s)'); ylabel('Amplitude'); 
 grid on; axis tight;
 
