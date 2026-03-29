@@ -23,7 +23,7 @@ syllable_data = {
     'ka', 5.28, 5.55; 'hit', 6.21, 6.45; 'mun', 7.23, 7.62; 'ti', 8.24, 8.43;
     'ang', 9.22, 9.58; 'ha', 10.17, 10.46; 'la', 11.09, 11.42; 'man', 12.30, 12.63;
     'do', 13.30, 13.77; 'on', 14.15, 14.46; 'ay', 15.15, 15.43; 'sa', 16.05, 16.37;
-    'ri', 16.89, 17.06;
+    'ri', 16.89, 17.06; 'sa', 16.05, 16.37; 'ri', 16.89, 17.06;
 };
 
 %% --- 2. MUSIC THEORY & SCORE MAPPING ---
@@ -53,7 +53,9 @@ score = {
     14, G3, 1;   % on
     15, E3, 1;   % ay
     16, D3, 1;   % sa (Targeting resolution)
-    17, C3, 2;   % ri (Resolves to root note C3 for a closed ending)
+    17, C3, 1;   % ri (Resolves to root note C3 for a closed ending)
+    18, D3, 1;   % sa 
+    19, C3, 2;   % ri 
 };
 
 %% --- 3. SYNTHESIS ENGINE ---
