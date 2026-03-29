@@ -173,72 +173,37 @@ grid on; axis tight;
 % This function simply pitch-shifts and applies a smooth natural decay
 % to the note, avoiding all robotic and stuttering stretching artifacts!
 function out_audio = shift_and_sustain(audio_in, orig_freq, target_freq, target_dur_sec, Fs)
-    % 1. Clean Pitch Shifting
-    [P, Q] = rat(orig_freq / target_freq, 1e-4);
+    % MILD pitch shift only (cap at ±4 semitones max)
+    % Voice sounds alien beyond cap so use the natural voice
+    semitone_shift = 12 * log2(target_freq / orig_freq);
+    semitone_shift = max(-4, min(4, semitone_shift)); % clamp to ±4 semitones
+    clamped_target = orig_freq * 2^(semitone_shift / 12);
+
+    [P, Q] = rat(orig_freq / clamped_target, 1e-3); % looser tolerance = smaller P,Q = less distortion
     shifted = resample(audio_in, P, Q);
-    
+
     target_samples = round(target_dur_sec * Fs);
-    curr_samples = length(shifted);
-    
-    % 2. Wavetable Sustain (Micro-looping without the stutter)
+    curr_samples   = length(shifted);
+
+    % Simple zero-pad OR natural truncation
+    % NO looping at all so just let the note ring then fade to silence
     if curr_samples < target_samples
-        % Isolate consonants to preserve the words clearly
-        idx_start = max(1, round(curr_samples * 0.25));
-        idx_end = min(curr_samples, round(curr_samples * 0.75));
-        
-        start_cons = shifted(1:idx_start-1);
-        end_cons = shifted(idx_end+1:end);
-        vowel = shifted(idx_start:idx_end);
-        
-        % Extract EXACTLY two pitch periods of the human voice
-        period = round(Fs / target_freq);
-        grain_size = 2 * period;
-        
-        if grain_size > length(vowel)
-            grain_size = length(vowel);
-            period = max(1, round(grain_size/2));
+        % Fade out the tail of the snippet naturally
+        fade_len = round(curr_samples * 0.30); % fade last 30%
+        if fade_len > 1
+            shifted(end-fade_len+1:end) = shifted(end-fade_len+1:end) .* linspace(1, 0, fade_len)';
         end
-        
-        mid_vowel = round(length(vowel) / 2);
-        wave_start = max(1, mid_vowel - round(grain_size/2));
-        wave = vowel(wave_start : min(length(vowel), wave_start + grain_size - 1));
-        grain_size = length(wave); 
-        
-        % Smooth the grain edges to prevent the square-wave buzz
-        win = hamming(grain_size);
-        wave = wave .* win;
-        
-        % Calculate empty space to fill
-        gap = target_samples - length(start_cons) - length(end_cons);
-        
-        if gap > 0
-            sustained = zeros(gap + grain_size, 1);
-            out_idx = 1;
-            
-            % Overlap exactly 1 period to create a smooth, continuous singing note
-            while out_idx + grain_size - 1 <= length(sustained)
-                sustained(out_idx : out_idx + grain_size - 1) = ...
-                    sustained(out_idx : out_idx + grain_size - 1) + wave;
-                out_idx = out_idx + period; 
-            end
-            
-            % Add a slight volume envelope so it breathes naturally like a singer
-            sustained = sustained(1:gap); 
-            env_len = round(gap * 0.2);
-            if env_len > 0 && env_len*2 < length(sustained)
-                sustained(1:env_len) = sustained(1:env_len) .* linspace(0.8, 1, env_len)';
-                sustained(end-env_len+1:end) = sustained(end-env_len+1:end) .* linspace(1, 0.7, env_len)';
-            end
-            
-            out_audio = [start_cons; sustained; end_cons];
-        else
-            out_audio = [start_cons; end_cons];
-        end
+        % Pad the rest with silence
+        out_audio = [shifted; zeros(target_samples - curr_samples, 1)];
     else
-        % If the word is already long enough, let it ring out naturally
+        % Natural truncation with a short fade out
         out_audio = shifted(1:target_samples);
+        fade_len = round(target_samples * 0.10);
+        if fade_len > 1
+            out_audio(end-fade_len+1:end) = out_audio(end-fade_len+1:end) .* linspace(1, 0, fade_len)';
+        end
     end
-    
+
     % 3. Master Edge Smooth (de-clicking)
     fade_len = round(0.02 * Fs);
     if length(out_audio) > 2*fade_len
