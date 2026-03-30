@@ -28,35 +28,33 @@ syllable_data = {
 };
 
 %% 2. MUSIC THEORY & SCORE MAPPING
-% Define the fundamental frequencies (Hz) of notes in the C3 Major Scale
-E3 = 164.8138; F3 = 174.6141; G3 = 195.9977; A3 = 220.0000; B3 = 246.9417;
-C4 = 261.6256; D4 = 293.6648; E4 = 329.6276;
+% Define the fundamental frequencies (Hz) of notes in the G Major Scale
+B2 = 123.47; C3 = 130.81; D3 = 146.83; E3 = 164.81; 
+Fs3 = 185.00; G3 = 196.00; A3 = 220.00; B3 = 246.94;
 
-% Musical Score of "Bahay Kubo"
-% Format: {Syllable_Index, Target_Frequency (Hz), Note_Duration (Beats)}
 score = {
-    % LINE 1: Bahay kubo, kahit munti
-    1,  G3, 1;   % ba
-    2,  C4, 2;   % hay
-    3,  D4, 1;   % ku
-    4,  B3, 2;   % bo (Held for 2 beats)
-    5,  G3, 1;   % ka
-    6,  A3, 2;   % hit
-    7,  B3, 1;   % mun
-    8,  G3, 2;   % ti (Held for 2 beats)
+    % --- LINE 1 ---
+    1,  D3,  1.2; % ba  (Sol)
+    2,  G3,  2;   % hay (Do)
+    3,  A3,  1;   % ku  (Re)
+    4,  Fs3, 2;   % bo  (Ti) - Held for 2 beats
+    5,  D3,  1;   % ka  (Sol)
+    6,  E3,  2;   % hit (La)
+    7,  Fs3, 1;   % mun (Ti)
+    8,  D3,  2;   % ti  (Sol) - Held for 2 beats
     
-    % LINE 2: Ang halaman doon ay sari
-    9,  E3, 0.5; % ang (Eighth note / half beat)
-    10, F3, 0.5; % ha  (Eighth note / half beat)
-    11, G3, 1;   % la
-    12, A3, 1;   % man
-    13, G3, 1;   % do
-    14, F3, 2;   % on
-    15, D4, 1;   % ay
-    16, D4, 1;   % sa (Targeting resolution)
-    17, E4, 1;   % ri (Resolves to root note C3 for a closed ending)
-    18, D4, 1;   % sa 
-    19, C4, 1;   % ri 
+    % --- LINE 2 ---
+    9,  B2,  0.7; % ang (Mi) - Lowest note in the song (123 Hz)
+    10, C3,  0.5; % ha  (Fa)
+    11, D3,  1;   % la  (Sol)
+    12, E3,  1.2; % man (La)
+    13, D3,  1;   % do  (Sol)
+    14, C3,  2;   % on  (Fa)
+    15, A3,  1;   % ay  (Re)
+    16, A3,  1.2;   % sa  (Re)
+    17, B3,  1;   % ri  (Mi) - Highest note in the song (246 Hz)
+    18, A3,  1.2;   % sa  (Re)
+    19, G3,  1;   % ri  (Do) - Resolves perfectly to the root note
 };
 
 %% 3. SYNTHESIS ENGINE (OVERLAP-MIXING)
@@ -123,7 +121,7 @@ for i = 1:size(score, 1)
     final_song(current_idx:end_idx) = final_song(current_idx:end_idx) + synth_note;
     
     step_samples = round(duration_beats * quarter_note_dur * Fs);
-    overlap_samples = round(0.09 * Fs); % 90ms
+    overlap_samples = round(0.08 * Fs); % 80ms
     current_idx = current_idx + step_samples - overlap_samples;
     
     if i == 8
@@ -174,13 +172,13 @@ grid on; axis tight;
 % This function simply pitch-shifts and applies a smooth natural decay
 % to the note, avoiding all robotic and stuttering stretching artifacts!
 function out_audio = shift_and_sustain(audio_in, orig_freq, target_freq, target_dur_sec, Fs)
-    % MILD pitch shift only (cap at ±4 semitones max)
+    % MILD pitch shift only (cap at ±13 semitones max)
     % Voice sounds alien beyond cap so use the natural voice
     semitone_shift = 12 * log2(target_freq / orig_freq);
-    semitone_shift = max(-8, min(8, semitone_shift)); % clamp to ±8 semitones
+    semitone_shift = max(-13, min(13, semitone_shift)); % clamp to ±8 semitones
     clamped_target = orig_freq * 2^(semitone_shift / 12);
 
-    [P, Q] = rat(orig_freq / clamped_target, 1e-3); % looser tolerance = smaller P,Q = less distortion
+    [P, Q] = rat(orig_freq / clamped_target, 1e-4); % looser tolerance = smaller P,Q = less distortion
     shifted = resample(audio_in, P, Q);
 
     target_samples = round(target_dur_sec * Fs);
