@@ -123,7 +123,8 @@ for i = 1:size(score, 1)
     final_song(current_idx:end_idx) = final_song(current_idx:end_idx) + synth_note;
     
     step_samples = round(duration_beats * quarter_note_dur * Fs);
-    current_idx = current_idx + step_samples;
+    overlap_samples = round(0.09 * Fs); % 90ms
+    current_idx = current_idx + step_samples - overlap_samples;
     
     if i == 8
         line1_len = current_idx;
@@ -176,7 +177,7 @@ function out_audio = shift_and_sustain(audio_in, orig_freq, target_freq, target_
     % MILD pitch shift only (cap at ±4 semitones max)
     % Voice sounds alien beyond cap so use the natural voice
     semitone_shift = 12 * log2(target_freq / orig_freq);
-    semitone_shift = max(-4, min(4, semitone_shift)); % clamp to ±4 semitones
+    semitone_shift = max(-8, min(8, semitone_shift)); % clamp to ±8 semitones
     clamped_target = orig_freq * 2^(semitone_shift / 12);
 
     [P, Q] = rat(orig_freq / clamped_target, 1e-3); % looser tolerance = smaller P,Q = less distortion
@@ -189,7 +190,7 @@ function out_audio = shift_and_sustain(audio_in, orig_freq, target_freq, target_
     % NO looping at all so just let the note ring then fade to silence
     if curr_samples < target_samples
         % Fade out the tail of the snippet naturally
-        fade_len = round(curr_samples * 0.30); % fade last 30%
+        fade_len = round(curr_samples * 0.10); % was 0.30
         if fade_len > 1
             shifted(end-fade_len+1:end) = shifted(end-fade_len+1:end) .* linspace(1, 0, fade_len)';
         end
