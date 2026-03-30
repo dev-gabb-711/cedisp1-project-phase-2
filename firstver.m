@@ -1,4 +1,5 @@
 % CEDISP1 Group 11
+% S30 PG11
 % Contribution:
 % Daniel Dabuit - Assisted with initial file conversion (.wav) and early refinement of syllable timings.
 % Marion Melanio - Recording of the raw audio, initial synthesis implementation, 
