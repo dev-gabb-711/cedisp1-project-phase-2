@@ -7,7 +7,7 @@
 % Tara Uy - Syllable segmentation/mapping, literature search of bahay kubo
 clear; clc; close all; % Clears workspace, command window, and closes all figure windows
 
-%% --- 1. LOAD DATA & SET PARAMETERS ---
+%% 1. LOAD DATA & SET PARAMETERS
 disp('Loading PG11.wav...');
 % audioread extracts the audio signal array (y) and sampling rate (Fs)
 [y, Fs] = audioread('PG11.wav'); 
@@ -27,7 +27,7 @@ syllable_data = {
     'ri', 16.89, 17.06; 'sa', 16.05, 16.37; 'ri', 16.89, 17.06;
 };
 
-%% --- 2. MUSIC THEORY & SCORE MAPPING ---
+%% 2. MUSIC THEORY & SCORE MAPPING
 % Define the fundamental frequencies (Hz) of notes in the C3 Major Scale
 E3 = 164.8138; F3 = 174.6141; G3 = 195.9977; A3 = 220.0000; B3 = 246.9417;
 C4 = 261.6256; D4 = 293.6648; E4 = 329.6276;
@@ -35,7 +35,7 @@ C4 = 261.6256; D4 = 293.6648; E4 = 329.6276;
 % Musical Score of "Bahay Kubo"
 % Format: {Syllable_Index, Target_Frequency (Hz), Note_Duration (Beats)}
 score = {
-    % --- LINE 1: Bahay kubo, kahit munti ---
+    % LINE 1: Bahay kubo, kahit munti
     1,  G3, 1;   % ba
     2,  C4, 2;   % hay
     3,  D4, 1;   % ku
@@ -45,7 +45,7 @@ score = {
     7,  B3, 1;   % mun
     8,  G3, 2;   % ti (Held for 2 beats)
     
-    % --- LINE 2: Ang halaman doon ay sari ---
+    % LINE 2: Ang halaman doon ay sari
     9,  E3, 0.5; % ang (Eighth note / half beat)
     10, F3, 0.5; % ha  (Eighth note / half beat)
     11, G3, 1;   % la
@@ -59,7 +59,7 @@ score = {
     19, C4, 1;   % ri 
 };
 
-%% --- 3. SYNTHESIS ENGINE (OVERLAP-MIXING) ---
+%% 3. SYNTHESIS ENGINE (OVERLAP-MIXING)
 disp('Extracting original pitches and synthesizing...');
 
 total_beats = sum(cell2mat(score(:, 3)));
@@ -130,7 +130,7 @@ for i = 1:size(score, 1)
     end
 end
 
-%% --- 4. FORMATTING TO REQUIREMENTS ---
+%% 4. FORMATTING TO REQUIREMENTS
 target_Fs = 16000;
 if Fs ~= target_Fs
     final_song = resample(final_song, target_Fs, Fs);
@@ -141,7 +141,7 @@ end
 % Amplitude Normalization
 final_song = final_song / max(abs(final_song));
 
-%% --- 5. OUTPUTS ---
+%% 5. OUTPUTS
 disp('Playing Final Synthesized Song...');
 soundsc(final_song, Fs); % Plays audio normalized to dynamic range
 
@@ -169,7 +169,7 @@ title('Line 2: /Ang halaman doon ay sari-sari/');
 xlabel('Time (s)'); ylabel('Amplitude'); 
 grid on; axis tight;
 
-%% --- LOCAL FUNCTION ---
+%% LOCAL FUNCTION
 % This function simply pitch-shifts and applies a smooth natural decay
 % to the note, avoiding all robotic and stuttering stretching artifacts!
 function out_audio = shift_and_sustain(audio_in, orig_freq, target_freq, target_dur_sec, Fs)
