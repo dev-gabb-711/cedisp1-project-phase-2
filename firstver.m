@@ -1,10 +1,12 @@
 % CEDISP1 Group 11
 % Contribution:
-% Dan Dabuit - Assisted with file conversion to .wav format
-% Marion Melanio - Recording of the .wav file and subplotting of extracted vowels
-% Gabriel Infante - Calculated and displayed the average frequencies.
-%                   Refinement of frequencies and timings of each syllable
-% Tara Uy - Syllable segmentation/mapping, literature search of bahay kubo
+% Daniel Dabuit - Assisted with initial file conversion (.wav) and early refinement of syllable timings.
+% Marion Melanio - Recording of the raw audio, initial synthesis implementation, 
+%                   and extraction/subplotting of vowel segments.
+% Gabriel Infante - Led the technical refinement of syllable timings and 
+%                   calculated/verified target frequency mappings.
+% Tara Uy - Managed syllable segmentation and mapping; conducted literature 
+%           research; assisted in pitch-shifting and timing refinement.
 clear; clc; close all; % Clears workspace, command window, and closes all figure windows
 
 %% 1. LOAD DATA & SET PARAMETERS
